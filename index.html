@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background-color: #003049;
+        }
+        
+        canvas {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+        }
+        
+        #info {
+            margin-top: 1080px;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canv" style="z-index: 3;"></canvas>
+    <canvas id="canv2" style="z-index: 1;"></canvas>
+    <canvas id="canv3" style="z-index: 4;"></canvas>
+    <canvas id="clona" style="z-index: 2"></canvas>
+    <p id="info"></p>
+    <p id="fps"></p>
+    <input type="text" id="init" name="lname"><br><br>
+    <button onclick="updateInit(document.getElementById('init').value)">Submit</button>
+    <script>
+        const canvas = document.getElementById("canv");
+        const canvas2 = document.getElementById("canv2");
+        const canvas3 = document.getElementById("canv3");
+        const clona = document.getElementById("clona");
+        const ctx = canvas.getContext('2d');
+        const ctx2 = canvas2.getContext('2d');
+        const ctx3 = canvas3.getContext('2d');
+        const ctxClona = clona.getContext('2d');
+        canvas.width = 1920;
+        canvas.height = 1080;
+        canvas2.width = 1920;
+        canvas2.height = 1080;
+        clona.width = 1920;
+        clona.height = 1080
+        canvas3.width = 100;
+        canvas3.height = 100;
+        ctx3.font = "40px Arial";
+        ctx3.fillStyle = "#FFFFFF";
+        ctx2.globalAlpha = 0.1;
+        ctx2.lineWidth = 5;
+
+        ctxClona.fillStyle = 'rgba(0,0,0,0.3)';
+        ctxClona.fillRect(0, 0, canvas.width, canvas.height);
+
+        const timeStep = 2;
+        const G = 6.674;
+
+        const obj1 = {
+            m: Math.random() * 15 + 10,
+            x: Math.random() * 1520 + 200,
+            y: Math.random() * 680 + 200,
+            vX: Math.random() * 4 - 2,
+            vY: Math.random() * 3 - 1.5,
+            c: 'rgba(193,18,31,1)',
+            t: []
+        };
+        const obj2 = {
+            m: Math.random() * 15 + 10,
+            x: Math.random() * 1520 + 200,
+            y: Math.random() * 680 + 200,
+            vX: Math.random() * 4 - 2,
+            vY: Math.random() * 3 - 1.5,
+            c: 'rgba(102,155,188,1)',
+            t: []
+        };
+        const obj3 = {
+            m: Math.random() * 15 + 10,
+            x: Math.random() * 1520 + 200,
+            y: Math.random() * 680 + 200,
+            vX: Math.random() * 4 - 2,
+            vY: Math.random() * 3 - 1.5,
+            c: 'rgba(253,240,213,1)',
+            t: []
+        };
+
+        var bodies = [obj1, obj2, obj3];
+        const bodiesCopy = bodies.slice();
+
+        function updateInit(conds) {
+            counter = 0;
+            resetCanvas();
+            var conds = conds.split(',').map(Number);
+            console.log(conds);
+            for (i = 0; i < bodies.length; i++) {
+                bodies[i].m = conds[0 + 5 * i];
+                bodies[i].x = conds[1 + 5 * i];
+                bodies[i].y = conds[2 + 5 * i];
+                bodies[i].vX = conds[3 + 5 * i];
+                bodies[i].vY = conds[4 + 5 * i];
+                bodies[i].t = [];
+            }
+            offsetCamera();
+        }
+
+        function displayInit() {
+            for (i = 0; i < bodiesCopy.length; i++) {
+                document.getElementById("info").innerHTML += bodiesCopy[i].m + "," + bodiesCopy[i].x + "," + bodiesCopy[i].y + "," + bodiesCopy[i].vX + "," + bodiesCopy[i].vY + ",";
+            }
+        }
+        displayInit();
+        setInterval(displayFPS, 1000);
+
+        let gridPos = [0, 0];
+
+
+        //DRAWING GRID
+
+        var bw = canvas.width + 300;
+        // Box height
+        var bh = canvas.width + 200;
+        // Padding
+
+
+        function drawBoard() {
+            ctx.beginPath();
+            var pX = gridPos[0] % 100 - 200;
+            var pY = gridPos[1] % 100 - 200;
+            ctx.lineWidth = 1;
+            for (var x = 0; x <= bw; x += 100) {
+                ctx.moveTo(0.5 + x + pX, pY);
+                ctx.lineTo(0.5 + x + pX, bh + pY);
+            }
+
+            for (var x = 0; x <= bh; x += 100) {
+                ctx.moveTo(pX, 0.5 + x + pY);
+                ctx.lineTo(bw + pX, 0.5 + x + pY);
+            }
+            ctx.strokeStyle = "black";
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        drawBoard();
+
+
+        function offsetCamera() {
+            let centerCoord = [0, 0];
+            for (i = 0; i < bodies.length; i++) {
+                centerCoord[0] += bodies[i].x;
+                centerCoord[1] += bodies[i].y;
+            }
+            centerCoord[0] = centerCoord[0] / bodies.length;
+            centerCoord[1] = centerCoord[1] / bodies.length;
+
+            for (i = 0; i < bodies.length; i++) {
+                bodies[i].x -= centerCoord[0] - (canvas.width / 2);
+                bodies[i].y -= centerCoord[1] - (canvas.height / 2);
+            }
+            gridPos[0] += centerCoord[0] - (canvas.width / 2);
+            gridPos[1] += centerCoord[1] - (canvas.height / 2);
+        }
+        offsetCamera();
+
+
+
+
+        let active = true;
+        let counter = 0;
+        let elapsedCounter = 0;
+        let darkMode = false;
+
+
+        function clearCanvas() {
+            ctx.fillStyle = "#003049";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (darkMode) {
+                ctx2.fillStyle = 'rgba(20,20,20,0.1)';
+                ctx2.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function resetCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx2.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawCircle(x, y, radius, color) {
+            ctx.save();
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
+            ctx.fillStyle = "#000000";
+            ctx.fill();
+            ctx.closePath();
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.closePath();
+            ctx.restore();
+        }
+
+        const desiredLength = 25;
+
+        /*function drawTail(tail, radius, color) {
+          let _color = color;
+          for (let i = tail.length-1, j=1; (i > tail.length-desiredLength && i > -1); i--, j++) { 
+            let alpha = (1-j/desiredLength)+")";
+            _color = _color.replace(/[\d\.]+\)$/g, alpha);
+            drawCircle(tail[i][0],tail[i][1],(1-j/desiredLength)*radius,_color);
+          }
+        }*/
+
+        function drawTail(tail, radius, color) {
+            /*ctx2.save();
+            ctx2.beginPath();
+            ctx2.lineWidth = radius*2;
+            for (let i = tail.length-2, j=1; (i > tail.length-desiredLength && i > -1); i--, j++) { 
+              ctx2.moveTo(tail[i][0], tail[i][1]);
+              ctx2.lineTo(tail[i+1][0], tail[i+1][1]);
+              ctx2.strokeStyle = color;
+            }
+            ctx2.closePath();
+            ctx2.stroke();
+            ctx2.restore();*/
+            ctx2.strokeStyle = color;
+
+            if (counter > 2) {
+                ctx2.beginPath();
+                ctx2.moveTo(tail[0][0], tail[0][1]);
+
+                for (var i = 1; i < tail.length - 2; i++) {
+                    var xc = (tail[i][0] + tail[i + 1][0]) / 2;
+                    var yc = (tail[i][1] + tail[i + 1][1]) / 2;
+                    ctx2.quadraticCurveTo(tail[i][0], tail[i][1], xc, yc);
+                }
+
+                // curve through the last two tail
+                ctx2.quadraticCurveTo(
+                    tail[i][0],
+                    tail[i][1],
+                    tail[i + 1][0],
+                    tail[i + 1][1]
+                );
+                ctx2.closePath();
+                ctx2.stroke();
+            }
+        }
+
+        function update() {
+            const adds = Array(bodies.length * 2).fill(0);
+
+            for (let i = 0; i < bodies.length; i++) {
+                const attractee = bodies[i];
+
+                for (let j = 0; j < bodies.length; j++) {
+                    if (i !== j) {
+                        const attractor = bodies[j];
+                        const distX = attractor.x - attractee.x;
+                        const distY = attractor.y - attractee.y;
+                        const dist = Math.sqrt(distX ** 2 + distY ** 2);
+                        const dV = (G * attractor.m / (dist ** 2)) * timeStep;
+                        const dVX = Math.sqrt(dV / ((distY / distX) ** 2 + 1));
+                        const dVY = Math.sqrt(dV / ((distX / distY) ** 2 + 1));
+
+
+                        if (distX > 0) {
+                            adds[2 * i] += dVX;
+                        } else {
+                            adds[2 * i] -= dVX;
+                        }
+
+                        if (distY > 0) {
+                            adds[2 * i + 1] += dVY;
+                        } else {
+                            adds[2 * i + 1] -= dVY;
+                        }
+                    }
+                }
+            }
+
+            drawBoard();
+            for (let i = 0; i < bodies.length; i++) {
+                const body = bodies[i];
+                body.vX += 0.5 * adds[2 * i];
+                body.vY += 0.5 * adds[2 * i + 1];
+                body.x += body.vX * timeStep;
+                body.y += body.vY * timeStep;
+
+                if (counter > desiredLength) {
+                    body.t.shift();
+                }
+                body.t.push([body.x, body.y]);
+
+                drawTail(body.t, body.m, body.c);
+                drawCircle(body.x, body.y, body.m, body.c);
+            }
+
+            offsetCamera();
+            counter++;
+        }
+        let seconds = 1;
+
+        function displayFPS() {
+            if (active) {
+                ctx3.clearRect(0, 0, canvas3.width, canvas3.height);
+                ctx3.fillText(seconds++, 0, 40);
+            }
+            document.getElementById("fps").innerHTML = counter - elapsedCounter;
+            elapsedCounter = counter;
+        }
+
+        let unlimitedFPS = true;
+        const targetFPS = 30;
+        const frameDelay = 1000 / targetFPS;
+        let lastFrameTime = 0;
+
+        function updateAndRender() {
+            if (active) {
+                const currentTime = performance.now();
+                const elapsedTime = currentTime - lastFrameTime;
+
+                /*if (elapsedTime > frameDelay && !unlimitedFPS) {
+                    lastFrameTime = currentTime - (elapsedTime % frameDelay);
+                    clearCanvas();
+                    update();
+                }*/
+                if (unlimitedFPS) {
+                    clearCanvas();
+                    update();
+                }
+
+                requestAnimationFrame(updateAndRender);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAndRender();
+        });
+
+        function rewind() {
+            updateInit(document.getElementById("info").innerHTML);
+            seconds = 0;
+        }
+
+        // Handle quitting the program
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'd') {
+                darkMode = !darkMode;
+                if (darkMode) {
+                    ctx2.globalAlpha = 1;
+                } else {
+                    ctx2.globalAlpha = 0.1;
+                }
+                resetCanvas();
+            }
+            /*if (event.key === 'u') {
+                unlimitedFPS = !unlimitedFPS;
+            }*/
+            if (event.key === 'Escape') {
+                active = !active;
+                /*if (!active){
+                  for (let i=0;i<bodies.length;i++){
+                    bodies[i].vX = -bodies[i].vX;
+                    bodies[i].vY = -bodies[i].vY;
+                  }
+                }*/
+                if (active) {
+                    updateAndRender();
+                }
+            }
+            if (event.key === 'Backspace') {
+                rewind();
+            }
+        });
+    </script>
+
+</body>
+
+</html>
